@@ -1,14 +1,14 @@
 #include "StatusScreen.h"
 
 //1 title, ITEM_PER_PAGE items (icon + label)
-const MENUITEMS StatusItems = {
+MENUITEMS StatusItems = {
 // title
 LABEL_READY,
 // icon                       label
  {{ICON_STATUS_NOZZLE,         LABEL_BACKGROUND},
   {ICON_STATUS_BED,            LABEL_BACKGROUND},
-  {ICON_STATUS_FAN,            LABEL_BACKGROUND},
   {ICON_STATUS_SPEED,         LABEL_BACKGROUND},
+  {ICON_RGB_WHITE,            LABEL_BACKGROUND},
   {ICON_MAINMENU,             LABEL_MAINMENU},
   {ICON_BACKGROUND,           LABEL_BACKGROUND},
   {ICON_BACKGROUND,           LABEL_BACKGROUND},
@@ -19,7 +19,6 @@ const ITEM ToolItems[3] = {
 // icon                       label
   {ICON_STATUS_NOZZLE,         LABEL_BACKGROUND},
   {ICON_STATUS_BED,            LABEL_BACKGROUND},
-  {ICON_STATUS_FAN,            LABEL_BACKGROUND},
 };
 const ITEM SpeedItems[2] = {
 // icon                       label
@@ -77,6 +76,12 @@ const  GUI_RECT msgRect ={START_X + 1 * ICON_WIDTH + 1 * SPACE_X + 2,   ICON_STA
 const GUI_RECT RecGantry = {START_X,                        1*ICON_HEIGHT+0*SPACE_Y+ICON_START_Y + STATUS_GANTRY_YOFFSET,
                             4*ICON_WIDTH+3*SPACE_X+START_X, 1*ICON_HEIGHT+1*SPACE_Y+ICON_START_Y - STATUS_GANTRY_YOFFSET};
 
+const ITEM lightStates[2] = {
+// icon                       label
+  {ICON_RGB_WHITE,            LABEL_BACKGROUND},
+  {ICON_RGB_BLACK,            LABEL_BACKGROUND},
+};
+static u8  light_state = 0;
 
 /*set status icons */
 /* void set_status_icon(void)
@@ -110,30 +115,11 @@ void drawTemperature(void)
   GUI_DispStringInPrect(&rectB[1], (u8 *)tempstr);                            //Bed value
 
   GUI_SetColor(HEADING_COLOR);
-  menuDrawIconOnly(&ToolItems[2],2);                                          //Fan icon
-  GUI_DispStringRight(pointID[2].x, pointID[2].y, (u8 *)fanID[current_fan]);  //Fan label
-  GUI_SetColor(VAL_COLOR);
-
-  u8 fs;
-  if (infoSettings.fan_percentage == 1)
-  {
-    fs = (fanGetSpeed(current_fan) * 100) / 255;
-    my_sprintf(tempstr, "%d%%", fs);
-  }
-  else
-  {
-    fs = fanGetSpeed(current_fan);
-    my_sprintf(tempstr, "%d", fs);
-  }
-
-  GUI_DispStringInPrect(&rectB[2], (u8 *)tempstr);                                //Fan value
-
-  GUI_SetColor(HEADING_COLOR);
-  menuDrawIconOnly(&SpeedItems[current_speedID],3);                               //Speed / flow icon
-  GUI_DispStringRight(pointID[3].x, pointID[3].y, (u8 *)SpeedID[current_speedID]);//Speed / flow label
+  menuDrawIconOnly(&SpeedItems[current_speedID],2);                               //Speed / flow icon
+  GUI_DispStringRight(pointID[2].x, pointID[2].y, (u8 *)SpeedID[current_speedID]);//Speed / flow label
   GUI_SetColor(VAL_COLOR);
   my_sprintf(tempstr, "%d%s", speedGetPercent(current_speedID),"%");
-  GUI_DispStringInPrect(&rectB[3], (u8 *)tempstr);                                //Speed / Flow value
+  GUI_DispStringInPrect(&rectB[2], (u8 *)tempstr);                                //Speed / Flow value
 
   GUI_SetTextMode(GUI_TEXTMODE_NORMAL);
   GUI_SetColor(GANTRYLBL_COLOR);
@@ -271,6 +257,7 @@ void toggleTool(void)
 {
   if (OS_GetTimeMs() > nextTime)
   {
+    storeCmd("M43 P122\n");
     if (EXTRUDER_NUM > 1)
     {
       current_Ext = (TOOL)((current_Ext + 1) % HEATER_NUM);
@@ -302,6 +289,16 @@ void toggleTool(void)
       gantryCmdWait = false;
     }
   }
+}
+
+void setLedState(bool on) {
+  light_state = on ? 1 : 0;
+  StatusItems.items[3] = lightStates[light_state];
+  menuDrawIconOnly(&StatusItems.items[3], 3);
+}
+
+void sendLightCommand() {
+  storeCmd("M42 P122 S%d\n", light_state*255);
 }
 
 void menuStatus(void)
@@ -338,10 +335,12 @@ void menuStatus(void)
         infoMenu.menu[++infoMenu.cur] = menuUnifiedHeat;
         break;
       case KEY_ICON_2:
-        infoMenu.menu[++infoMenu.cur] = menuFan;
+        infoMenu.menu[++infoMenu.cur] = menuSpeed;
         break;
       case KEY_ICON_3:
-        infoMenu.menu[++infoMenu.cur] = menuSpeed;
+        light_state = (light_state+1) % 2;
+        setLedState(light_state);
+        sendLightCommand();
         break;
       case KEY_ICON_4:
         infoMenu.menu[++infoMenu.cur] = unifiedMenu;

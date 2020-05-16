@@ -23,5 +23,5 @@ void drawStatusScreenMsg(void);
 float getAxisLocation(uint8_t n);
 void gantry_dec(int n, float val);
 void gantry_inc(int n, float val);
-
+void setLedState(bool on);
 #endif

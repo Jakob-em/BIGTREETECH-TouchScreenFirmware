@@ -403,6 +403,11 @@ void parseACK(void)
         BUZZER_PLAY(sound_notify);
         ackPopupInfo(echomagic);
       }
+      else if (ack_seen("PIN: 1.22 ")) {
+        if(ack_seen("Output =")) {
+          setLedState(ack_value() == 1);
+        }
+      }
     }
 
   parse_end:
